@@ -25,8 +25,8 @@ capture b a =
     a |= b
 
 
-ignore : Parser ignore -> Parser keep -> Parser keep
-ignore b a =
+skip : Parser ignore -> Parser keep -> Parser keep
+skip b a =
     a |. b
 
 
@@ -104,9 +104,9 @@ tipeHelp t =
 arrowAndType : Parser Type
 arrowAndType =
   succeed identity
-    |> ignore (backtrackable spaces)
-    |> ignore arrow
-    |> ignore spaces
+    |> skip (backtrackable spaces)
+    |> skip arrow
+    |> skip spaces
     |> capture tipe
 
 
@@ -131,7 +131,7 @@ chompArgs : List Type -> Parser (Step (List Type) (List Type))
 chompArgs revArgs =
   oneOf
     [ succeed identity
-        |> ignore (backtrackable spaces)
+        |> skip (backtrackable spaces)
         |> capture term
         |> map (\arg -> Loop (arg :: revArgs))
     , map (\_ -> Done (List.reverse revArgs)) (succeed ())
@@ -155,8 +155,8 @@ term =
 record : Parser Type
 record =
   succeed (\ext fs -> Record fs ext)
-    |> ignore (symbol "{")
-    |> ignore spaces
+    |> skip (symbol "{")
+    |> skip spaces
     |> capture extension
     |> capture recordEnd
 
@@ -166,9 +166,9 @@ extension =
   oneOf
     [ succeed Just
         |> capture (backtrackable lowVar)
-        |> ignore (backtrackable spaces)
-        |> ignore (symbol "|")
-        |> ignore spaces
+        |> skip (backtrackable spaces)
+        |> skip (symbol "|")
+        |> skip spaces
     , succeed Nothing
     ]
 
@@ -178,9 +178,9 @@ field : Parser (String, Type)
 field =
   succeed Tuple.pair
     |> capture lowVar
-    |> ignore spaces
-    |> ignore (symbol ":")
-    |> ignore spaces
+    |> skip spaces
+    |> skip (symbol ":")
+    |> skip spaces
     |> capture tipe
 
 
@@ -202,10 +202,10 @@ recordEndHelp : Fields -> Parser (Step Fields Fields)
 recordEndHelp revFields =
   oneOf
     [ succeed (\f -> Loop (f :: revFields))
-        |> ignore comma
-        |> ignore spaces
+        |> skip comma
+        |> skip spaces
         |> capture field
-        |> ignore spaces
+        |> skip spaces
     , succeed (\_ -> Done (List.reverse revFields))
         |> capture (symbol "}")
     ]
@@ -261,15 +261,15 @@ isInnerVarChar char =
 qualifiedCapVar : Parser String
 qualifiedCapVar =
   capVar
-    |> ignore (loop () qualifiedCapVarHelp)
+    |> skip (loop () qualifiedCapVarHelp)
     |> getChompedString
 
 qualifiedCapVarHelp : () -> Parser (Step () ())
 qualifiedCapVarHelp _ =
   oneOf
     [ succeed (Loop ())
-        |> ignore (symbol ".")
-        |> ignore capVar
+        |> skip (symbol ".")
+        |> skip capVar
     , succeed (Done ())
     ]
 
