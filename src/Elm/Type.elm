@@ -20,6 +20,15 @@ import Set
 import String
 
 
+capture : Parser a -> Parser (a -> b) -> Parser b
+capture b a =
+    a |= b
+
+
+ignore : Parser ignore -> Parser keep -> Parser keep
+ignore b a =
+    a |. b
+
 
 -- TYPES
 
@@ -95,10 +104,10 @@ tipeHelp t =
 arrowAndType : Parser Type
 arrowAndType =
   succeed identity
-    |. backtrackable spaces
-    |. arrow
-    |. spaces
-    |= tipe
+    |> ignore (backtrackable spaces)
+    |> ignore arrow
+    |> ignore spaces
+    |> capture tipe
 
 
 arrow : Parser ()
@@ -111,8 +120,8 @@ tipeTerm =
   oneOf
     [ map Var lowVar
     , succeed Type
-        |= qualifiedCapVar
-        |= loop [] chompArgs
+        |> capture qualifiedCapVar
+        |> capture (loop [] chompArgs)
     , record
     , tuple
     ]
@@ -122,8 +131,8 @@ chompArgs : List Type -> Parser (Step (List Type) (List Type))
 chompArgs revArgs =
   oneOf
     [ succeed identity
-        |. backtrackable spaces
-        |= term
+        |> ignore (backtrackable spaces)
+        |> capture term
         |> map (\arg -> Loop (arg :: revArgs))
     , map (\_ -> Done (List.reverse revArgs)) (succeed ())
     ]
@@ -146,20 +155,20 @@ term =
 record : Parser Type
 record =
   succeed (\ext fs -> Record fs ext)
-    |. symbol "{"
-    |. spaces
-    |= extension
-    |= recordEnd
+    |> ignore (symbol "{")
+    |> ignore spaces
+    |> capture extension
+    |> capture recordEnd
 
 
 extension : Parser (Maybe String)
 extension =
   oneOf
     [ succeed Just
-        |= backtrackable lowVar
-        |. backtrackable spaces
-        |. symbol "|"
-        |. spaces
+        |> capture (backtrackable lowVar)
+        |> ignore (backtrackable spaces)
+        |> ignore (symbol "|")
+        |> ignore spaces
     , succeed Nothing
     ]
 
@@ -168,11 +177,11 @@ extension =
 field : Parser (String, Type)
 field =
   succeed Tuple.pair
-    |= lowVar
-    |. spaces
-    |. symbol ":"
-    |. spaces
-    |= tipe
+    |> capture lowVar
+    |> ignore spaces
+    |> ignore (symbol ":")
+    |> ignore spaces
+    |> capture tipe
 
 
 type alias Fields = List (String, Type)
@@ -193,12 +202,12 @@ recordEndHelp : Fields -> Parser (Step Fields Fields)
 recordEndHelp revFields =
   oneOf
     [ succeed (\f -> Loop (f :: revFields))
-        |. comma
-        |. spaces
-        |= field
-        |. spaces
+        |> ignore comma
+        |> ignore spaces
+        |> capture field
+        |> ignore spaces
     , succeed (\_ -> Done (List.reverse revFields))
-        |= symbol "}"
+        |> capture (symbol "}")
     ]
 
 
@@ -251,16 +260,16 @@ isInnerVarChar char =
 
 qualifiedCapVar : Parser String
 qualifiedCapVar =
-  getChompedString <|
-    capVar
-      |. loop () qualifiedCapVarHelp
+  capVar
+    |> ignore (loop () qualifiedCapVarHelp)
+    |> getChompedString
 
 qualifiedCapVarHelp : () -> Parser (Step () ())
 qualifiedCapVarHelp _ =
   oneOf
     [ succeed (Loop ())
-        |. symbol "."
-        |. capVar
+        |> ignore (symbol ".")
+        |> ignore capVar
     , succeed (Done ())
     ]
 
